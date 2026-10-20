@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opportunity Assistant</title>
+<style>
+  :root {
+    --bg: #f4f6fb;
+    --panel: #ffffff;
+    --text: #1b2333;
+    --muted: #667085;
+    --border: #e3e7f0;
+    --accent: #0b6bcb;
+    --accent-text: #ffffff;
+    --bot: #eef2f9;
+    --user: #0b6bcb;
+    --ok: #12a150;
+    --warn: #c77700;
+    --shadow: 0 8px 30px rgba(20, 35, 70, .08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f141d;
+      --panel: #171e2b;
+      --text: #e8edf6;
+      --muted: #93a0b5;
+      --border: #263044;
+      --accent: #4c9bf0;
+      --accent-text: #08111f;
+      --bot: #212b3d;
+      --user: #2f7fd8;
+      --ok: #3ccf7f;
+      --warn: #f0b04c;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+  }
+  .app {
+    width: 100%;
+    max-width: 760px;
+    height: calc(100vh - 32px);
+    max-height: 860px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: var(--accent); color: var(--accent-text);
+    display: grid; place-items: center; font-size: 20px;
+  }
+  .title { font-weight: 650; }
+  .sub { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); }
+  .dot.warn { background: var(--warn); }
+  .spacer { flex: 1; }
+  .ghost {
+    border: 1px solid var(--border); background: transparent; color: var(--muted);
+    border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .ghost:hover { color: var(--text); border-color: var(--muted); }
+
+  #log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scroll-behavior: smooth;
+  }
+  .msg {
+    max-width: 82%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    animation: pop .18s ease-out;
+  }
+  .msg.bot  { background: var(--bot); border-bottom-left-radius: 4px; align-self: flex-start; }
+  .msg.user { background: var(--user); color: #fff; border-bottom-right-radius: 4px; align-self: flex-end; }
+  .msg.error { background: transparent; border: 1px solid var(--warn); color: var(--warn); }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .typing { display: inline-flex; gap: 4px; padding: 14px; }
+  .typing span {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--muted);
+    animation: blink 1.2s infinite ease-in-out;
+  }
+  .typing span:nth-child(2) { animation-delay: .15s; }
+  .typing span:nth-child(3) { animation-delay: .3s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+
+  #chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 18px 10px; }
+  .chip {
+    border: 1px solid var(--border); background: transparent; color: var(--accent);
+    border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .chip:hover { background: var(--bot); }
+
+  form {
+    display: flex; gap: 10px; padding: 14px 18px; border-top: 1px solid var(--border);
+  }
+  #input {
+    flex: 1; border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    border-radius: 12px; padding: 11px 14px; font: inherit; outline: none;
+  }
+  #input:focus { border-color: var(--accent); }
+  #send {
+    border: 0; background: var(--accent); color: var(--accent-text);
+    border-radius: 12px; padding: 0 20px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  #send:disabled { opacity: .5; cursor: not-allowed; }
+
+  @media (max-width: 520px) {
+    body { padding: 0; }
+    .app { height: 100vh; max-height: none; border-radius: 0; border: 0; }
+    .msg { max-width: 92%; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo" aria-hidden="true">💬</div>
+    <div>
+      <div class="title">Opportunity Assistant</div>
+      <div class="sub"><span class="dot" id="dot"></span><span id="status">Connecting…</span></div>
+    </div>
+    <div class="spacer"></div>
+    <button class="ghost" id="clear" type="button">Clear</button>
+  </header>
+
+  <div id="log" aria-live="polite"></div>
+  <div id="chips"></div>
+
+  <form id="form" autocomplete="off">
+    <input id="input" placeholder="Ask about an opportunity, e.g. Who owns AM003?" aria-label="Message" autofocus>
+    <button id="send" type="submit">Send</button>
+  </form>
+</div>
+
+<script>
+(function () {
+  // Same origin by default. To use this page with an API on another host,
+  // open it as index.html?api=https://your-server:5000
+  var API = (new URLSearchParams(location.search).get("api") || "").replace(/\/$/, "");
+
+  var log = document.getElementById("log");
+  var form = document.getElementById("form");
+  var input = document.getElementById("input");
+  var send = document.getElementById("send");
+  var chips = document.getElementById("chips");
+  var dot = document.getElementById("dot");
+  var status = document.getElementById("status");
+  var busy = false;
+
+  function add(text, cls) {
+    var el = document.createElement("div");
+    el.className = "msg " + cls;
+    el.textContent = text;           // textContent: replies can never inject HTML
+    log.appendChild(el);
+    log.scrollTop = log.scrollHeight;
+    return el;
+  }
+
+  function typing() {
+    var el = document.createElement("div");
+    el.className = "msg bot typing";
+    el.innerHTML = "<span></span><span></span><span></span>";
+    log.appendChild(el);
+    log.scrollTop = log.scrollHeight;
+    return el;
+  }
+
+  function setBusy(value) {
+    busy = value;
+    send.disabled = value;
+    input.disabled = value;
+    if (!value) input.focus();
+  }
+
+  async function ask(message) {
+    if (busy || !message.trim()) return;
+    add(message, "user");
+    input.value = "";
+    setBusy(true);
+    var dots = typing();
+    try {
+      var res = await fetch(API + "/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: message })
+      });
+      var data = await res.json();
+      dots.remove();
+      if (!res.ok) throw new Error(data.error || ("Server error " + res.status));
+      add(data.reply, "bot");
+    } catch (err) {
+      dots.remove();
+      add("Could not reach the chatbot server. Is `python app.py` running?\n(" + err.message + ")", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function welcome() {
+    add("👋 Hi! I can answer questions about your Salesforce opportunities: owner, stage, dates, sales, volume, priority and more. Try one of the suggestions below.", "bot");
+  }
+
+  function setChips(examples) {
+    chips.innerHTML = "";
+    examples.forEach(function (q) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.textContent = q;
+      b.addEventListener("click", function () { ask(q); });
+      chips.appendChild(b);
+    });
+  }
+
+  async function loadHealth() {
+    try {
+      var res = await fetch(API + "/health");
+      var h = await res.json();
+      var live = h.source === "salesforce";
+      dot.className = "dot " + (live ? "ok" : "warn");
+      status.textContent = (live ? "Live Salesforce data" : "Demo data (CSV)") + " · " + h.opportunities + " opportunities";
+      var ex = h.examples || [];
+      var chipsList = [];
+      if (ex[0]) chipsList.push("Who owns " + ex[0] + "?");
+      if (ex[1]) chipsList.push("Give me a summary of " + ex[1]);
+      if (ex[2]) chipsList.push("What stage is " + ex[2] + " in?");
+      if (ex[0]) chipsList.push("When does " + ex[0] + " start and end?");
+      setChips(chipsList);
+    } catch (e) {
+      dot.className = "dot";
+      status.textContent = "Server not reachable";
+      setChips(["Who owns AM003?", "Give me a summary of BMWGEN6"]);
+    }
+  }
+
+  form.addEventListener("submit", function (e) { e.preventDefault(); ask(input.value); });
+  document.getElementById("clear").addEventListener("click", function () {
+    log.innerHTML = "";
+    welcome();
+  });
+
+  welcome();
+  loadHealth();
+})();
+</script>
+</body>
+</html>
